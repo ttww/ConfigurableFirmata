@@ -47,6 +47,8 @@
 #define FIRMWARE_BUGFIX_VERSION 0
 
 #define MAX_DATA_BYTES          64 // max number of data bytes in incoming messages
+#define MAX_OUTPUT_DATA_BYTES   64 // max number of data bytes in outgoing messages
+
 
 // Arduino 101 also defines SET_PIN_MODE as a macro in scss_registers.h
 #ifdef SET_PIN_MODE
@@ -166,6 +168,7 @@ class FirmataClass
     void sendString(byte command, const char *string);
     void sendSysex(byte command, byte bytec, byte *bytev);
     void write(byte c);
+    void flush();
     /* attach & detach callback functions to messages */
     void attach(byte command, callbackFunction newFunction);
     void attach(byte command, systemResetCallbackFunction newFunction);
@@ -197,6 +200,9 @@ class FirmataClass
     byte executeMultiByteCommand; // execute this after getting multi-byte data
     byte multiByteChannel; // channel data for multiByteCommands
     byte storedInputData[MAX_DATA_BYTES]; // multi-byte data
+    byte bufferedOutputData[MAX_OUTPUT_DATA_BYTES]; // buffer for output stream
+    byte bufferedOutputIdx;                         // next write index in bufferedOutputData
+
     /* sysex */
     boolean parsingSysex;
     int sysexBytesRead;

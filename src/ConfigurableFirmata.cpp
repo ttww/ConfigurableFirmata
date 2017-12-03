@@ -16,6 +16,10 @@
 //* Includes
 //******************************************************************************
 
+//#define SERIAL_DEBUG
+#include "utility/firmataDebug.h"
+
+
 #include "ConfigurableFirmata.h"
 #include "HardwareSerial.h"
 
@@ -34,8 +38,8 @@ extern "C" {
  */
 void FirmataClass::sendValueAsTwo7bitBytes(int value)
 {
-  FirmataStream->write(value & B01111111); // LSB
-  FirmataStream->write(value >> 7 & B01111111); // MSB
+  write(value & B01111111); // LSB
+  write(value >> 7 & B01111111); // MSB
 }
 
 /**
@@ -43,7 +47,7 @@ void FirmataClass::sendValueAsTwo7bitBytes(int value)
  */
 void FirmataClass::startSysex(void)
 {
-  FirmataStream->write(START_SYSEX);
+  write(START_SYSEX);
 }
 
 /**
@@ -51,7 +55,7 @@ void FirmataClass::startSysex(void)
  */
 void FirmataClass::endSysex(void)
 {
-  FirmataStream->write(END_SYSEX);
+  write(END_SYSEX);
 }
 
 //******************************************************************************
@@ -118,9 +122,9 @@ void FirmataClass::begin(Stream &s)
  */
 void FirmataClass::printVersion(void)
 {
-  FirmataStream->write(REPORT_VERSION);
-  FirmataStream->write(FIRMATA_PROTOCOL_MAJOR_VERSION);
-  FirmataStream->write(FIRMATA_PROTOCOL_MINOR_VERSION);
+  write(REPORT_VERSION);
+  write(FIRMATA_PROTOCOL_MAJOR_VERSION);
+  write(FIRMATA_PROTOCOL_MINOR_VERSION);
 }
 
 /**
@@ -164,9 +168,9 @@ void FirmataClass::printFirmwareVersion(void)
 
   if (firmwareVersionCount) { // make sure that the name has been set before reporting
     startSysex();
-    FirmataStream->write(REPORT_FIRMWARE);
-    FirmataStream->write(firmwareVersionVector[0]); // major version number
-    FirmataStream->write(firmwareVersionVector[1]); // minor version number
+    write(REPORT_FIRMWARE);
+    write(firmwareVersionVector[0]); // major version number
+    write(firmwareVersionVector[1]); // minor version number
     for (i = 2; i < firmwareVersionCount; ++i) {
       sendValueAsTwo7bitBytes(firmwareVersionVector[i]);
     }
@@ -406,7 +410,7 @@ boolean FirmataClass::isResetting(void)
 void FirmataClass::sendAnalog(byte pin, int value)
 {
   // pin can only be 0-15, so chop higher bits
-  FirmataStream->write(ANALOG_MESSAGE | (pin & 0xF));
+  write(ANALOG_MESSAGE | (pin & 0xF));
   sendValueAsTwo7bitBytes(value);
 }
 
@@ -448,9 +452,9 @@ void FirmataClass::sendDigital(byte pin, int value)
  */
 void FirmataClass::sendDigitalPort(byte portNumber, int portData)
 {
-  FirmataStream->write(DIGITAL_MESSAGE | (portNumber & 0xF));
-  FirmataStream->write((byte)portData % 128); // Tx bits 0-6
-  FirmataStream->write(portData >> 7);  // Tx bits 7-13
+  write(DIGITAL_MESSAGE | (portNumber & 0xF));
+  write((byte)portData % 128); // Tx bits 0-6
+  write(portData >> 7);  // Tx bits 7-13
 }
 
 /**
@@ -464,7 +468,7 @@ void FirmataClass::sendSysex(byte command, byte bytec, byte *bytev)
 {
   byte i;
   startSysex();
-  FirmataStream->write(command);
+  write(command);
   for (i = 0; i < bytec; i++) {
     sendValueAsTwo7bitBytes(bytev[i]);
   }
@@ -491,13 +495,37 @@ void FirmataClass::sendString(const char *string)
 }
 
 /**
- * A wrapper for Stream::available().
+ * A wrapper for Stream::write().
  * Write a single byte to the output stream.
+ *
+ * The byte is buffered until a flush() is done or MAX_OUTPUT_DATA_BYTES
+ * are written and a flush() is done automatically.
+ * A automatic flush is also done, if an END_SYSEX (end of MIDI command) is written. 
+ * This allows to drastically reduce the WiFi package traffic.
+ *
  * @param c The byte to be written.
  */
 void FirmataClass::write(byte c)
 {
-  FirmataStream->write(c);
+  if (bufferedOutputIdx >= MAX_OUTPUT_DATA_BYTES) {
+    flush();
+  }
+  bufferedOutputData[bufferedOutputIdx++] = c;
+
+  if (c == END_SYSEX) flush();
+
+  //FirmataStream->write(c);  old call
+}
+
+/**
+ * Flush the output buffer if needed.
+ */
+void FirmataClass::flush()
+{
+  if (bufferedOutputIdx != 0) {
+    FirmataStream->write(bufferedOutputData, bufferedOutputIdx);
+    bufferedOutputIdx = 0;
+  }
 }
 
 

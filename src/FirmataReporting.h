@@ -32,6 +32,7 @@ class FirmataReporting: public FirmataFeature
     boolean handlePinMode(byte pin, int mode); //empty method
     boolean handleSysex(byte command, byte argc, byte* argv);
     boolean elapsed();
+    void done();	// All reporting is done, flush the buffers
     void reset();
   private:
     /* timer variables */

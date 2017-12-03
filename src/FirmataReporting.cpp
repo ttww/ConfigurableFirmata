@@ -56,7 +56,18 @@ boolean FirmataReporting::elapsed()
       previousMillis = currentMillis - samplingInterval;
     return true;
   }
+  // if someone forget it in the main loop, we call it here
+  flush();
   return false;
+}
+
+/**
+ * Should be called from the main loop after all reporting is done.
+ * This enables to collect the reporting data to on transmission frame.
+ */
+void FirmataReporting::done()
+{
+  Firmata.flush();
 }
 
 void FirmataReporting::reset()
