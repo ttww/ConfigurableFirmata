@@ -17,6 +17,8 @@
 #ifndef AnalogInputFirmata_h
 #define AnalogInputFirmata_h
 
+#define REPORT_ONLY_CHANGES // Send only if analog value is changed
+
 #include <ConfigurableFirmata.h>
 #include "FirmataFeature.h"
 #include "FirmataReporting.h"
@@ -37,6 +39,9 @@ class AnalogInputFirmata: public FirmataFeature
   private:
     /* analog inputs */
     int analogInputsToReport; // bitwise array to store pin reporting
+#ifdef REPORT_ONLY_CHANGES
+    int lastAnalogValue[TOTAL_PINS];
+#endif
 };
 
 #endif

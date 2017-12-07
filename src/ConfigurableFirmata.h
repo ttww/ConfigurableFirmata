@@ -27,12 +27,12 @@
 
 /*
  * Version numbers for the Firmata library.
- * ConfigurableFirmata 2.10.0 implements version 2.6.0 of the Firmata protocol.
+ * ConfigurableFirmata 2.11.0 implements version 2.6.0 of the Firmata protocol.
  * The firmware version will not always equal the protocol version going forward.
  * Query using the REPORT_FIRMWARE message.
  */
 #define FIRMATA_FIRMWARE_MAJOR_VERSION  2 // for non-compatible changes
-#define FIRMATA_FIRMWARE_MINOR_VERSION  10 // for backwards compatible changes
+#define FIRMATA_FIRMWARE_MINOR_VERSION  11 // for backwards compatible changes
 #define FIRMATA_FIRMWARE_BUGFIX_VERSION 0 // for bugfix releases
 
 // DEPRECATED as of ConfigurableFirmata v2.8.1.
@@ -43,11 +43,16 @@
 // DEPRECATED as of ConfigurableFirmata v2.8.1.
 //Use FIRMATA_FIRMWARE_[MAJOR|MINOR|BUGFIX]_VERSION instead.
 #define FIRMWARE_MAJOR_VERSION  2
-#define FIRMWARE_MINOR_VERSION  10
+#define FIRMWARE_MINOR_VERSION  11
 #define FIRMWARE_BUGFIX_VERSION 0
 
+#define USE_OUTPUT_BUFFER // Use output buffers for drastically reducing packet load (WiFi...)
+
 #define MAX_DATA_BYTES          64 // max number of data bytes in incoming messages
+
+#ifdef USE_OUTPUT_BUFFER
 #define MAX_OUTPUT_DATA_BYTES   64 // max number of data bytes in outgoing messages
+#endif
 
 
 // Arduino 101 also defines SET_PIN_MODE as a macro in scss_registers.h
@@ -200,8 +205,10 @@ class FirmataClass
     byte executeMultiByteCommand; // execute this after getting multi-byte data
     byte multiByteChannel; // channel data for multiByteCommands
     byte storedInputData[MAX_DATA_BYTES]; // multi-byte data
+#ifdef USE_OUTPUT_BUFFER
     byte bufferedOutputData[MAX_OUTPUT_DATA_BYTES]; // buffer for output stream
     byte bufferedOutputIdx;                         // next write index in bufferedOutputData
+#endif
 
     /* sysex */
     boolean parsingSysex;

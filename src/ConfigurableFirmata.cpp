@@ -498,23 +498,22 @@ void FirmataClass::sendString(const char *string)
  * A wrapper for Stream::write().
  * Write a single byte to the output stream.
  *
+ * if USE_OUTPUT_BUFFER is defined:
  * The byte is buffered until a flush() is done or MAX_OUTPUT_DATA_BYTES
  * are written and a flush() is done automatically.
- * A automatic flush is also done, if an END_SYSEX (end of MIDI command) is written. 
+ * The applocation should do a Firmata.flush() in the main loop
  * This allows to drastically reduce the WiFi package traffic.
  *
  * @param c The byte to be written.
  */
 void FirmataClass::write(byte c)
 {
-  if (bufferedOutputIdx >= MAX_OUTPUT_DATA_BYTES) {
-    flush();
-  }
+#ifdef USE_OUTPUT_BUFFER
+  if (bufferedOutputIdx >= MAX_OUTPUT_DATA_BYTES) flush(); // emergency flush 
   bufferedOutputData[bufferedOutputIdx++] = c;
-
-  if (c == END_SYSEX) flush();
-
-  //FirmataStream->write(c);  old call
+#else
+  FirmataStream->write(c);
+#endif
 }
 
 /**
@@ -522,10 +521,12 @@ void FirmataClass::write(byte c)
  */
 void FirmataClass::flush()
 {
+#ifdef USE_OUTPUT_BUFFER
   if (bufferedOutputIdx != 0) {
     FirmataStream->write(bufferedOutputData, bufferedOutputIdx);
     bufferedOutputIdx = 0;
   }
+#endif
 }
 
 

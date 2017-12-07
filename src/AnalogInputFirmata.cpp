@@ -16,6 +16,9 @@
   Last updated by Jeff Hoefs: November 22nd, 2015
 */
 
+//#define SERIAL_DEBUG
+#include "utility/firmataDebug.h"
+
 #include <ConfigurableFirmata.h>
 #include "AnalogFirmata.h"
 #include "AnalogInputFirmata.h"
@@ -63,6 +66,9 @@ boolean AnalogInputFirmata::handlePinMode(byte pin, int mode)
 {
   if (IS_PIN_ANALOG(pin)) {
     if (mode == PIN_MODE_ANALOG) {
+#ifdef REPORT_ONLY_CHANGES
+      lastAnalogValue[pin] = 0xffff;
+#endif
       reportAnalog(PIN_TO_ANALOG(pin), 1); // turn on reporting
       if (IS_PIN_DIGITAL(pin)) {
         pinMode(PIN_TO_DIGITAL(pin), INPUT); // disable output driver
@@ -102,8 +108,17 @@ void AnalogInputFirmata::report()
     if (IS_PIN_ANALOG(pin) && Firmata.getPinMode(pin) == PIN_MODE_ANALOG) {
       analogPin = PIN_TO_ANALOG(pin);
       if (analogInputsToReport & (1 << analogPin)) {
+#ifdef REPORT_ONLY_CHANGES
+	int value = analogRead(analogPin);
+        if (value != lastAnalogValue[pin]) {
+	  lastAnalogValue[pin] = value;
+          Firmata.sendAnalog(analogPin, value);
+        }
+#else
         Firmata.sendAnalog(analogPin, analogRead(analogPin));
+#endif
       }
     }
   }
 }
+
