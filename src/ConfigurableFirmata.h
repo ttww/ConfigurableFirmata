@@ -32,7 +32,7 @@
  * Query using the REPORT_FIRMWARE message.
  */
 #define FIRMATA_FIRMWARE_MAJOR_VERSION  2 // for non-compatible changes
-#define FIRMATA_FIRMWARE_MINOR_VERSION  11 // for backwards compatible changes
+#define FIRMATA_FIRMWARE_MINOR_VERSION  12 // for backwards compatible changes
 #define FIRMATA_FIRMWARE_BUGFIX_VERSION 0 // for bugfix releases
 
 // DEPRECATED as of ConfigurableFirmata v2.8.1.
@@ -43,7 +43,7 @@
 // DEPRECATED as of ConfigurableFirmata v2.8.1.
 //Use FIRMATA_FIRMWARE_[MAJOR|MINOR|BUGFIX]_VERSION instead.
 #define FIRMWARE_MAJOR_VERSION  2
-#define FIRMWARE_MINOR_VERSION  11
+#define FIRMWARE_MINOR_VERSION  12
 #define FIRMWARE_BUGFIX_VERSION 0
 
 #define USE_OUTPUT_BUFFER // Use output buffers for drastically reducing packet load (WiFi...)
@@ -80,6 +80,13 @@
 #define SERIAL_MESSAGE          0x60 // communicate with serial devices, including other boards
 #define ENCODER_DATA            0x61 // reply with encoders current positions
 #define ACCELSTEPPER_DATA       0x62 // control a stepper motor
+
+
+// twtwtw
+#define COUNTER_CONFIG          0x63 // config IRQ counter module
+#define COUNTER_QUERY           0x64 // ask for counter value(s)
+#define COUNTER_RESPONSE        0x65 // reply with for counter value(s)
+
 #define SERVO_CONFIG            0x70 // set max angle, minPulse, maxPulse, freq
 #define STRING_DATA             0x71 // a string message with 14-bits per char
 #define STEPPER_DATA            0x72 // control a stepper motor
@@ -107,6 +114,8 @@
 #define SYSEX_I2C_REPLY         0x77 // same as I2C_REPLY
 #define SYSEX_SAMPLING_INTERVAL 0x7A // same as SAMPLING_INTERVAL
 
+#define HEARTBEAT               0x99 // I'm alive message
+
 // pin modes
 //#define INPUT                 0x00 // defined in Arduino.h
 //#define OUTPUT                0x01 // defined in Arduino.h
@@ -120,8 +129,10 @@
 #define PIN_MODE_ENCODER        0x09 // pin configured for rotary encoders
 #define PIN_MODE_SERIAL         0x0A // pin configured for serial communication
 #define PIN_MODE_PULLUP         0x0B // enable internal pull-up resistor for pin
+// twtwtw
+#define PIN_MODE_COUNTER        0x0C // enable internal pull-up resistor for pin
 #define PIN_MODE_IGNORE         0x7F // pin configured to be ignored by digitalWrite and capabilityResponse
-#define TOTAL_PIN_MODES         13
+#define TOTAL_PIN_MODES         14
 // DEPRECATED as of Firmata v2.5
 #define ANALOG                  0x02 // same as PIN_MODE_ANALOG
 #define PWM                     0x03 // same as PIN_MODE_PWM
@@ -194,6 +205,7 @@ class FirmataClass
     void sendValueAsTwo7bitBytes(int value);
     void startSysex(void);
     void endSysex(void);
+    void sendHeartbeat(void);
 
   private:
     Stream *FirmataStream;

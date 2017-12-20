@@ -474,6 +474,12 @@ void FirmataClass::sendSysex(byte command, byte bytec, byte *bytev)
   }
   endSysex();
 }
+void FirmataClass::sendHeartbeat()
+{
+  startSysex();
+  write(HEARTBEAT);
+  endSysex();
+}
 
 /**
  * Send a string to the Firmata host application.
