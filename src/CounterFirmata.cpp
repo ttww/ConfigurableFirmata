@@ -24,21 +24,19 @@
 #include "CounterFirmata.h"
 //#include "utility/FirmataStepper.h"
 
+CounterFirmata::CounterFirmata()
+{
+  DEBUG_PRINTLN("CounterFirmata :-)");
+}
+
 boolean CounterFirmata::handlePinMode(byte pin, int mode)
 {
   if (mode == PIN_MODE_COUNTER) {
-    DEBUG_PRINT("Counter: Pin=");
-    DEBUG_PRINT(pin);
-    if (IS_PIN_INTERRUPT(pin)) {
-      DEBUG_PRINTLN(" --> OK!");
-      return true;
-    }
-    DEBUG_PRINTLN(" --> NO IRQ!");
-//    if (IS_PIN_DIGITAL(pin)) {
-//      digitalWrite(PIN_TO_DIGITAL(pin), LOW); // disable PWM
-//      pinMode(PIN_TO_DIGITAL(pin), OUTPUT);
-//      return true;
-//    }
+      if (IS_PIN_INTERRUPT(pin)) {
+      	// The final initialisation is done via the config command below:
+        pinMode(PIN_TO_DIGITAL(pin), INPUT);
+	      return true;
+  	  }
   }
   return false;
 }
@@ -55,73 +53,112 @@ void CounterFirmata::handleCapability(byte pin)
  * SYSEX-BASED commands
  *============================================================================*/
 
+volatile unsigned long isrCount[MAX_COUNTERS];	// 4 bytes
+unsigned long          lastCount[MAX_COUNTERS];	// 4 bytes
+unsigned long          msNextReport[MAX_COUNTERS];	// 4 bytes
+unsigned short         msToReset[MAX_COUNTERS];	// 4 bytes
+byte                   counterPins[MAX_COUNTERS];
+byte                   numCounters;
+
+void counterIRQ0() { isrCount[0]++; }
+void counterIRQ1() { isrCount[1]++; }
+void counterIRQ2() { isrCount[2]++; }
+void counterIRQ3() { isrCount[3]++; }
+void counterIRQ4() { isrCount[4]++; }
+void counterIRQ5() { isrCount[5]++; }
+void counterIRQ6() { isrCount[6]++; }
+void counterIRQ7() { isrCount[7]++; }
+
 boolean CounterFirmata::handleSysex(byte command, byte argc, byte *argv)
 {
-//  if (command == STEPPER_DATA) {
-//    byte stepCommand, deviceNum, directionPin, stepPin, stepDirection;
-//    byte interface, interfaceType;
-//    byte motorPin3, motorPin4;
-//    unsigned int stepsPerRev;
-//    long numSteps;
-//    int stepSpeed;
-//    int accel;
-//    int decel;
-//
-//    stepCommand = argv[0];
-//    deviceNum = argv[1];
-//
-//    if (deviceNum < MAX_STEPPERS) {
-//      if (stepCommand == STEPPER_CONFIG) {
-//
-//        interface = argv[2]; // upper 4 bits are the stepDelay, lower 4 bits are the interface type
-//        interfaceType = interface & 0x0F; // the interface type is specified by the lower 4 bits
-//        stepsPerRev = (argv[3] + (argv[4] << 7));
-//
-//        directionPin = argv[5]; // or motorPin1 for TWO_WIRE or FOUR_WIRE interface
-//        stepPin = argv[6]; // // or motorPin2 for TWO_WIRE or FOUR_WIRE interface
-//        if (Firmata.getPinMode(directionPin) == PIN_MODE_IGNORE || Firmata.getPinMode(stepPin) == PIN_MODE_IGNORE)
-//          return false;
-//        Firmata.setPinMode(directionPin, PIN_MODE_STEPPER);
-//        Firmata.setPinMode(stepPin, PIN_MODE_STEPPER);
-//
-//        if (!stepper[deviceNum]) {
-//          numSteppers++;
-//        }
-//        if (interfaceType == FirmataStepper::DRIVER || interfaceType == FirmataStepper::TWO_WIRE) {
-//          stepper[deviceNum] = new FirmataStepper(interface, stepsPerRev, directionPin, stepPin);
-//        } else if (interfaceType == FirmataStepper::FOUR_WIRE) {
-//          motorPin3 = argv[7];
-//          motorPin4 = argv[8];
-//          if (Firmata.getPinMode(motorPin3) == PIN_MODE_IGNORE || Firmata.getPinMode(motorPin4) == PIN_MODE_IGNORE)
-//            return false;
-//          Firmata.setPinMode(motorPin3, PIN_MODE_STEPPER);
-//          Firmata.setPinMode(motorPin4, PIN_MODE_STEPPER);
-//          stepper[deviceNum] = new FirmataStepper(interface, stepsPerRev, directionPin, stepPin, motorPin3, motorPin4);
-//        }
-//      }
-//      else if (stepCommand == STEPPER_STEP) {
-//        stepDirection = argv[2];
-//        numSteps = (long)argv[3] | ((long)argv[4] << 7) | ((long)argv[5] << 14);
-//        stepSpeed = (argv[6] + (argv[7] << 7));
-//
-//        if (stepDirection == 0) {
-//          numSteps *= -1;
-//        }
-//        if (stepper[deviceNum]) {
-//          if (argc >= 8 && argc < 12) {
-//            // num steps, speed (0.01*rad/sec)
-//            stepper[deviceNum]->setStepsToMove(numSteps, stepSpeed);
-//          } else if (argc == 12) {
-//            accel = (argv[8] + (argv[9] << 7));
-//            decel = (argv[10] + (argv[11] << 7));
-//            // num steps, speed (0.01*rad/sec), accel (0.01*rad/sec^2), decel (0.01*rad/sec^2)
-//            stepper[deviceNum]->setStepsToMove(numSteps, stepSpeed, accel, decel);
-//          }
-//        }
-//      }
-//      return true;
-//    }
-//  }
+  DEBUG_PRINT("Counter: CMD=");
+  DEBUG_PRINTLN(command);
+  DEBUG_PRINT("   argc=");
+  DEBUG_PRINTLN(argc);
+
+// 0x00 = CHANGE
+// 0x01 = RISING
+// 0x02 = FALLING
+// 0x03 = CHANGE with PULLUP
+// 0x04 = RISING with PULLUP
+// 0x05 = FALLING with PULLUP
+
+  if (command == COUNTER_CONFIG) {
+ 
+  	if (numCounters == MAX_COUNTERS) return false;	// no more counters left
+  	
+    DEBUG_PRINTLN(" Config !");
+    for (byte i=0; i<argc; i++) {
+		  DEBUG_PRINT(i);
+		  DEBUG_PRINT(": ");
+		  DEBUG_PRINTLN(argv[i]);
+		}
+		
+		#define PIN_IDX     0
+		#define CONFIG_IDX  1
+		#define MS_HIGH_IDX 2
+		#define MS_LOW_IDX  3
+
+		counterPins[numCounters] = argv[PIN_IDX];
+		isrCount[numCounters]    = 0;
+		lastCount[numCounters]   = 0;
+		msToReset[numCounters]   = argv[MS_HIGH_IDX] << 8 | argv[MS_LOW_IDX];
+		
+		DEBUG_PRINT("Pin     =  ");
+		DEBUG_PRINTLN(counterPins[numCounters] );
+		DEBUG_PRINT("MS     =  ");
+		DEBUG_PRINTLN(msToReset[numCounters] );
+
+		void (*irqFunc)(void) = NULL;
+		switch (numCounters) {
+			case 0: irqFunc = &counterIRQ0;		break;
+			case 1: irqFunc = &counterIRQ1;		break;
+			case 2: irqFunc = &counterIRQ2;		break;
+			case 3: irqFunc = &counterIRQ3;		break;
+			case 4: irqFunc = &counterIRQ4;		break;
+			case 5: irqFunc = &counterIRQ5;		break;
+			case 6: irqFunc = &counterIRQ6;		break;
+			case 7: irqFunc = &counterIRQ7;		break;
+		}
+		
+		byte mappedPin = PIN_TO_DIGITAL(argv[PIN_IDX]);
+		
+		switch (argv[CONFIG_IDX]) {
+			case 0x00:	// CHANGE
+						pinMode(mappedPin, INPUT);
+						attachInterrupt(mappedPin, irqFunc, CHANGE);
+						break;
+			case 0x01:	// RISING
+						pinMode(mappedPin, INPUT);
+						attachInterrupt(mappedPin, irqFunc, RISING);
+						break;
+			case 0x02:	// FALLING
+						pinMode(mappedPin, INPUT);
+						attachInterrupt(mappedPin, irqFunc, FALLING);
+						break;
+			case 0x03:	// CHANGE with PULLUP
+						pinMode(mappedPin, INPUT_PULLUP);
+						attachInterrupt(mappedPin, irqFunc, CHANGE);
+						break;
+			case 0x04:	// RISING with PULLUP
+						pinMode(mappedPin, INPUT_PULLUP);
+						attachInterrupt(mappedPin, irqFunc, RISING);
+						break;
+			case 0x05:	// FALLING with PULLUP
+						pinMode(mappedPin, INPUT_PULLUP);
+						attachInterrupt(mappedPin, irqFunc, FALLING);
+						break;
+		}	// switch
+		  
+		numCounters++;
+		
+    return true;
+  }
+
+  if (command == COUNTER_QUERY) {
+	}
+	
+  DEBUG_PRINTLN(" Counter: Wrong command!");
   return false;
 }
 
@@ -131,6 +168,7 @@ boolean CounterFirmata::handleSysex(byte command, byte argc, byte *argv)
 
 void CounterFirmata::reset()
 {
+    DEBUG_PRINTLN("Counter: RESET");
 //  for (byte i = 0; i < MAX_STEPPERS; i++) {
 //    if (stepper[i]) {
 //      free(stepper[i]);

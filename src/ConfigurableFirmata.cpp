@@ -713,6 +713,10 @@ void FirmataClass::systemReset(void)
     storedInputData[i] = 0;
   }
 
+#ifdef USE_OUTPUT_BUFFER
+    bufferedOutputIdx = 0;
+#endif
+
   parsingSysex = false;
   sysexBytesRead = 0;
 
