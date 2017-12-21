@@ -45,16 +45,9 @@
 // [sumTimeHighByte][sumTimeLowByte]:
 // Time in ms before report and reset the counter
 //
-// Query Command (COUNTER_QUERY)
-// ==================================================================
-// [counterBits][resetBits]
-// counterBits:  Bit 0 = report counter 0, bit 1 for counter 1....
-// resetBits:    Reset after reporting. Next automatic report after
-//               sumTime ms if bit set.
-//
 // Reply Message (COUNTER_RESPONSE, or reporting)
 // ==================================================================
-// [counterBits][first counter Big-Endian, 4 bytes unsigned integer]([second counter...])]
+// [pin][counter value Big-Endian, 4 bytes unsigned integer]([pin...])]
 // If more than one counter is reported, we start with the lowest counter.
 //
 class CounterFirmata: public FirmataFeature

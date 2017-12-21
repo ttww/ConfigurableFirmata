@@ -168,30 +168,27 @@ void CounterFirmata::reset()
   numCounters = 0;
 }
 
-// [counterBits][first counter Big-Endian, 4 bytes unsigned integer]([second counter...])]
+// [pin][counter value Big-Endian, 4 bytes unsigned integer]([pin...])]
 void CounterFirmata::sendCounters()
 {
 	if (numCounters == 0) return;
 	
-	byte counterBit = 1;
-	byte counterBits = 0;
-
 	// Check if we need to report something:
 	unsigned long ms = millis();
-  for (byte i = 0; i < numCounters; i++) {
-  	if (ms - lastMs[i] > msToReset[i]) counterBits |= counterBit;
-		counterBit <<= 1;
-  }
-  if (counterBits == 0) return;	// nothing to report
   
-  Firmata.write(START_SYSEX);
-  Firmata.write(COUNTER_RESPONSE);
-  Firmata.write(counterBits);
-	
-	counterBit = 1;
+	boolean hasOne = false;
+
   for (byte i = 0; i < numCounters; i++) {
-  	if (counterBits & counterBit) {	// Faster than below if statement
-  	//if (ms - lastMs[i] > msToReset[i]) {
+  	if (ms - lastMs[i] > msToReset[i]) {
+  	
+  			if (!hasOne) {
+				  Firmata.write(START_SYSEX);
+				  Firmata.write(COUNTER_RESPONSE);
+					hasOne = true;
+  			}
+
+			  Firmata.write(counterPins[i]);
+  	
   			lastMs[i] += msToReset[i];
 
 				noInterrupts();
@@ -207,10 +204,9 @@ void CounterFirmata::sendCounters()
         Firmata.write(   c        & 0xff );
   	}
   	
-  	counterBit <<= 1;
   }	// for
   
-  Firmata.write(END_SYSEX);
+  if (hasOne) Firmata.write(END_SYSEX);
 
 }
 
