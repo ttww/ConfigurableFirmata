@@ -52,7 +52,7 @@
 // resetBits:    Reset after reporting. Next automatic report after
 //               sumTime ms if bit set.
 //
-// Reply Message (COUNTER_RESPONSE)
+// Reply Message (COUNTER_RESPONSE, or reporting)
 // ==================================================================
 // [counterBits][first counter Big-Endian, 4 bytes unsigned integer]([second counter...])]
 // If more than one counter is reported, we start with the lowest counter.
@@ -65,6 +65,7 @@ class CounterFirmata: public FirmataFeature
     boolean handleSysex(byte command, byte argc, byte *argv);
     void update();
     void reset();
+    
   private:
 		//volatile unsigned long isrCount[MAX_COUNTERS];	// 4 bytes
 		unsigned long          lastCount[MAX_COUNTERS];	// 4 bytes
@@ -72,6 +73,9 @@ class CounterFirmata: public FirmataFeature
 		unsigned short         msToReset[MAX_COUNTERS];	// 4 bytes
 		byte                   counterPins[MAX_COUNTERS];
 		byte                   numCounters;
+		
+		void sendCounters();
+
 };
 
 #endif

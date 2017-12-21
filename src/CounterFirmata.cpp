@@ -167,39 +167,67 @@ boolean CounterFirmata::handleSysex(byte command, byte argc, byte *argv)
 
 void CounterFirmata::reset()
 {
+  DEBUG_PRINTLN(" Counter: Reset");
   for (byte i = 0; i < numCounters; i++) {
   	detachInterrupt(PIN_TO_DIGITAL(counterPins[numCounters]));
   }
   numCounters = 0;
 }
+
+// [counterBits][first counter Big-Endian, 4 bytes unsigned integer]([second counter...])]
+void CounterFirmata::sendCounters()
+{
+	if (numCounters == 0) return;
+	
+	byte counterBit = 1;
+	byte counterBits = 0;
+
+	// Check if we need to report something:
+	unsigned long ms = millis();
+  for (byte i = 0; i < numCounters; i++) {
+  	if (ms - lastMs[i] > msToReset[i]) {
+        counterBits |= counterBit;
+		}
+		counterBit <<= 1;
+  }
+  if (counterBits == 0) return;
+  
+  Firmata.write(START_SYSEX);
+  Firmata.write(counterBits);
+	
+	counterBit = 1;
+  for (byte i = 0; i < numCounters; i++) {
+  	if (counterBits & counterBit) {	// Faster than below if statement
+  	//if (ms - lastMs[i] > msToReset[i]) {
+  			lastMs[i] += msToReset[i];
+
+				noInterrupts();
+				unsigned long c = isrCount[i];
+				isrCount[i] = 0;
+				interrupts();
+
+				lastCount[i] = c;
+
+  DEBUG_PRINT("CounterUpdate ");
+  DEBUG_PRINTLN(c);
+        
+        Firmata.write(  (c >> 24) & 0xff);
+        Firmata.write(  (c >> 16) & 0xff);
+        Firmata.write(  (c >>  8) & 0xff);
+        Firmata.write(   c        & 0xff );
+  	}
+  	
+  	counterBit <<= 1;
+  }	// for
+  
+  Firmata.write(END_SYSEX);
+
+}
+
 /*==============================================================================
  * LOOP()
  *============================================================================*/
 void CounterFirmata::update()
 {
-	if (numCounters == 0) return;
-	
-  for (byte i = 0; i < numCounters; i++) {
-  	if (millis() - lastMs[i] > msToReset[i]) {
-  			lastMs[i] += msToReset[i];
-  DEBUG_PRINT("CounterUpdate ");
-  DEBUG_PRINTLN(isrCount[i]);
-  	}
-  }
-  
-//  if (numSteppers > 0) {
-//    // if one or more stepper motors are used, update their position
-//    for (byte i = 0; i < MAX_STEPPERS; i++) {
-//      if (stepper[i]) {
-//        bool done = stepper[i]->update();
-//        // send command to client application when stepping is complete
-//        if (done) {
-//          Firmata.write(START_SYSEX);
-//          Firmata.write(STEPPER_DATA);
-//          Firmata.write(i);
-//          Firmata.write(END_SYSEX);
-//        }
-//      }
-//    }
-//  }
+  sendCounters();
 }
