@@ -66,10 +66,10 @@ void counterIRQ7() { isrCount[7]++; }
 
 boolean CounterFirmata::handleSysex(byte command, byte argc, byte *argv)
 {
-  DEBUG_PRINT("Counter: CMD=");
-  DEBUG_PRINTLN(command);
-  DEBUG_PRINT("   argc=");
-  DEBUG_PRINTLN(argc);
+  //DEBUG_PRINT("Counter: CMD=");
+  //DEBUG_PRINTLN(command);
+  //DEBUG_PRINT("   argc=");
+  //DEBUG_PRINTLN(argc);
 
 // 0x00 = CHANGE
 // 0x01 = RISING
@@ -80,15 +80,10 @@ boolean CounterFirmata::handleSysex(byte command, byte argc, byte *argv)
 
   if (command == COUNTER_CONFIG) {
  
+		unsigned long ms = millis();
+		
   	if (numCounters == MAX_COUNTERS) return false;	// no more counters left
   	
-    DEBUG_PRINTLN(" Config !");
-    for (byte i=0; i<argc; i++) {
-		  DEBUG_PRINT(i);
-		  DEBUG_PRINT(": ");
-		  DEBUG_PRINTLN(argv[i]);
-		}
-		
 		#define PIN_IDX     0
 		#define CONFIG_IDX  1
 		#define MS_HIGH_IDX 2
@@ -98,14 +93,8 @@ boolean CounterFirmata::handleSysex(byte command, byte argc, byte *argv)
 		isrCount[numCounters]     = 0;
 		lastCount[numCounters]    = 0;
 		msToReset[numCounters]    = argv[MS_HIGH_IDX] << 8 | argv[MS_LOW_IDX];
-		lastMs[numCounters]       = millis();
+		lastMs[numCounters]       = ms;
 		
-
-		DEBUG_PRINT("Pin     =  ");
-		DEBUG_PRINTLN(counterPins[numCounters] );
-		DEBUG_PRINT("MS     =  ");
-		DEBUG_PRINTLN(msToReset[numCounters] );
-
 		void (*irqFunc)(void) = NULL;
 		switch (numCounters) {
 			case 0: irqFunc = &counterIRQ0;		break;
@@ -147,9 +136,15 @@ boolean CounterFirmata::handleSysex(byte command, byte argc, byte *argv)
 						break;
 		}	// switch
 		
-		interrupts();
+	//	interrupts();
 
 		numCounters++;
+		
+		// Resync all counters to the same reporting base. This allow us to report
+		// counters with the same interval in one update() call.
+		for (byte i = 0; i < numCounters; i++) {
+ 			lastMs[i] = ms;
+		}
 		
     return true;
   }
@@ -167,7 +162,6 @@ boolean CounterFirmata::handleSysex(byte command, byte argc, byte *argv)
 
 void CounterFirmata::reset()
 {
-  DEBUG_PRINTLN(" Counter: Reset");
   for (byte i = 0; i < numCounters; i++) {
   	detachInterrupt(PIN_TO_DIGITAL(counterPins[numCounters]));
   }
@@ -185,14 +179,13 @@ void CounterFirmata::sendCounters()
 	// Check if we need to report something:
 	unsigned long ms = millis();
   for (byte i = 0; i < numCounters; i++) {
-  	if (ms - lastMs[i] > msToReset[i]) {
-        counterBits |= counterBit;
-		}
+  	if (ms - lastMs[i] > msToReset[i]) counterBits |= counterBit;
 		counterBit <<= 1;
   }
-  if (counterBits == 0) return;
+  if (counterBits == 0) return;	// nothing to report
   
   Firmata.write(START_SYSEX);
+  Firmata.write(COUNTER_RESPONSE);
   Firmata.write(counterBits);
 	
 	counterBit = 1;
@@ -208,9 +201,6 @@ void CounterFirmata::sendCounters()
 
 				lastCount[i] = c;
 
-  DEBUG_PRINT("CounterUpdate ");
-  DEBUG_PRINTLN(c);
-        
         Firmata.write(  (c >> 24) & 0xff);
         Firmata.write(  (c >> 16) & 0xff);
         Firmata.write(  (c >>  8) & 0xff);
