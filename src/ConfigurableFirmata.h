@@ -114,7 +114,7 @@
 #define SYSEX_I2C_REPLY         0x77 // same as I2C_REPLY
 #define SYSEX_SAMPLING_INTERVAL 0x7A // same as SAMPLING_INTERVAL
 
-#define HEARTBEAT               0x99 // I'm alive message
+#define HEARTBEAT               0xFC // I'm alive message
 
 // pin modes
 //#define INPUT                 0x00 // defined in Arduino.h
