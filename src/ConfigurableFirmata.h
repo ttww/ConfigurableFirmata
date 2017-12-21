@@ -206,6 +206,7 @@ class FirmataClass
     void startSysex(void);
     void endSysex(void);
     void sendHeartbeat(void);
+    void systemReset(void);
 
   private:
     Stream *FirmataStream;
@@ -247,7 +248,6 @@ class FirmataClass
 
     /* private methods ------------------------------ */
     void processSysexMessage(void);
-    void systemReset(void);
     void strobeBlinkPin(byte pin, int count, int onInterval, int offInterval);
 };
 

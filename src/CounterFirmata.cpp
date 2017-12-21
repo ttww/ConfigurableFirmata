@@ -24,11 +24,6 @@
 #include "CounterFirmata.h"
 //#include "utility/FirmataStepper.h"
 
-CounterFirmata::CounterFirmata()
-{
-  DEBUG_PRINTLN("CounterFirmata :-)");
-}
-
 boolean CounterFirmata::handlePinMode(byte pin, int mode)
 {
   if (mode == PIN_MODE_COUNTER) {
@@ -54,11 +49,11 @@ void CounterFirmata::handleCapability(byte pin)
  *============================================================================*/
 
 volatile unsigned long isrCount[MAX_COUNTERS];	// 4 bytes
-unsigned long          lastCount[MAX_COUNTERS];	// 4 bytes
-unsigned long          msNextReport[MAX_COUNTERS];	// 4 bytes
-unsigned short         msToReset[MAX_COUNTERS];	// 4 bytes
-byte                   counterPins[MAX_COUNTERS];
-byte                   numCounters;
+//unsigned long          lastCount[MAX_COUNTERS];	// 4 bytes
+//unsigned long          lastMs[MAX_COUNTERS];	// 4 bytes
+//unsigned short         msToReset[MAX_COUNTERS];	// 4 bytes
+//byte                   counterPins[MAX_COUNTERS];
+//byte                   numCounters;
 
 void counterIRQ0() { isrCount[0]++; }
 void counterIRQ1() { isrCount[1]++; }
@@ -99,11 +94,13 @@ boolean CounterFirmata::handleSysex(byte command, byte argc, byte *argv)
 		#define MS_HIGH_IDX 2
 		#define MS_LOW_IDX  3
 
-		counterPins[numCounters] = argv[PIN_IDX];
-		isrCount[numCounters]    = 0;
-		lastCount[numCounters]   = 0;
-		msToReset[numCounters]   = argv[MS_HIGH_IDX] << 8 | argv[MS_LOW_IDX];
+		counterPins[numCounters]  = argv[PIN_IDX];
+		isrCount[numCounters]     = 0;
+		lastCount[numCounters]    = 0;
+		msToReset[numCounters]    = argv[MS_HIGH_IDX] << 8 | argv[MS_LOW_IDX];
+		lastMs[numCounters]       = millis();
 		
+
 		DEBUG_PRINT("Pin     =  ");
 		DEBUG_PRINTLN(counterPins[numCounters] );
 		DEBUG_PRINT("MS     =  ");
@@ -149,7 +146,9 @@ boolean CounterFirmata::handleSysex(byte command, byte argc, byte *argv)
 						attachInterrupt(mappedPin, irqFunc, FALLING);
 						break;
 		}	// switch
-		  
+		
+		interrupts();
+
 		numCounters++;
 		
     return true;
@@ -168,21 +167,26 @@ boolean CounterFirmata::handleSysex(byte command, byte argc, byte *argv)
 
 void CounterFirmata::reset()
 {
-    DEBUG_PRINTLN("Counter: RESET");
-//  for (byte i = 0; i < MAX_STEPPERS; i++) {
-//    if (stepper[i]) {
-//      free(stepper[i]);
-//      stepper[i] = 0;
-//    }
-//  }
-//  numSteppers = 0;
+  for (byte i = 0; i < numCounters; i++) {
+  	detachInterrupt(PIN_TO_DIGITAL(counterPins[numCounters]));
+  }
+  numCounters = 0;
 }
-
 /*==============================================================================
  * LOOP()
  *============================================================================*/
 void CounterFirmata::update()
 {
+	if (numCounters == 0) return;
+	
+  for (byte i = 0; i < numCounters; i++) {
+  	if (millis() - lastMs[i] > msToReset[i]) {
+  			lastMs[i] += msToReset[i];
+  DEBUG_PRINT("CounterUpdate ");
+  DEBUG_PRINTLN(isrCount[i]);
+  	}
+  }
+  
 //  if (numSteppers > 0) {
 //    // if one or more stepper motors are used, update their position
 //    for (byte i = 0; i < MAX_STEPPERS; i++) {

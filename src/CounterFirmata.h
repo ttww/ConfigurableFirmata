@@ -60,16 +60,15 @@
 class CounterFirmata: public FirmataFeature
 {
   public:
-  CounterFirmata();
     boolean handlePinMode(byte pin, int mode);
     void handleCapability(byte pin);
     boolean handleSysex(byte command, byte argc, byte *argv);
     void update();
     void reset();
   private:
-		volatile unsigned long isrCount[MAX_COUNTERS];	// 4 bytes
+		//volatile unsigned long isrCount[MAX_COUNTERS];	// 4 bytes
 		unsigned long          lastCount[MAX_COUNTERS];	// 4 bytes
-		unsigned long          msNextReport[MAX_COUNTERS];	// 4 bytes
+		unsigned long          lastMs[MAX_COUNTERS];	// 4 bytes
 		unsigned short         msToReset[MAX_COUNTERS];	// 4 bytes
 		byte                   counterPins[MAX_COUNTERS];
 		byte                   numCounters;

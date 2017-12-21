@@ -692,13 +692,8 @@ void FirmataClass::setPinState(byte pin, int state)
  }
 */
 
-//******************************************************************************
-//* Private Methods
-//******************************************************************************
-
 /**
  * Resets the system state upon a SYSTEM_RESET message from the host software.
- * @private
  */
 void FirmataClass::systemReset(void)
 {
@@ -725,6 +720,11 @@ void FirmataClass::systemReset(void)
 
   resetting = false;
 }
+
+
+//******************************************************************************
+//* Private Methods
+//******************************************************************************
 
 /**
  * Flashing the pin for the version number
